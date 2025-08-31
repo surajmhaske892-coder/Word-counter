@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Word Counter — Fast, Accurate, Free</title>
+  <meta name="description" content="A simple, privacy-friendly word counter web app that counts words, characters, sentences, paragraphs, and estimates reading time." />
+  <style>
+    :root{
+      --bg:#0f172a; /* slate-900 */
+      --panel:#111827; /* gray-900 */
+      --muted:#94a3b8; /* slate-400 */
+      --text:#e5e7eb; /* gray-200 */
+      --accent:#22d3ee; /* cyan-400 */
+      --accent-2:#38bdf8; /* sky-400 */
+      --ring:rgba(56,189,248,.35);
+      --ok:#22c55e;
+      --warn:#f59e0b;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background:radial-gradient(1200px 600px at 10% -10%, #0b1220 10%, transparent 70%),
+                 radial-gradient(1200px 600px at 110% 10%, #0a1a2b 10%, transparent 70%),
+                 var(--bg);
+      color:var(--text);
+      display:flex; flex-direction:column; gap:16px;
+    }
+    header{
+      padding:24px 20px 0; max-width:1100px; width:100%; margin:0 auto;
+    }
+    .title{display:flex; align-items:center; gap:12px;}
+    .logo{width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg, var(--accent), var(--accent-2)); display:grid; place-items:center; color:#0b1220; font-weight:800}
+    .subtitle{color:var(--muted); margin-top:4px}
+
+    main{max-width:1100px; width:100%; margin:0 auto; padding:0 20px 24px; display:grid; grid-template-columns:1fr; gap:16px}
+    @media (min-width: 980px){
+      main{grid-template-columns: 1fr 360px; align-items:start}
+    }
+
+    .editor{
+      background:rgba(17,24,39,.7); backdrop-filter:saturate(1.2) blur(8px);
+      border:1px solid rgba(56,189,248,.15);
+      border-radius:18px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    .toolbar{display:flex; flex-wrap:wrap; gap:8px; padding:12px; border-bottom:1px solid rgba(148,163,184,.12); background:linear-gradient(180deg, rgba(56,189,248,.06), transparent)}
+    .toolbar .left{display:flex; gap:8px; align-items:center; flex:1}
+    .toolbar .right{display:flex; gap:8px; align-items:center}
+
+    .btn{appearance:none; border:1px solid rgba(148,163,184,.2); color:var(--text); background:rgba(30,41,59,.6); padding:8px 12px; border-radius:12px; font-weight:600; cursor:pointer; transition:.18s ease; display:inline-flex; gap:8px; align-items:center}
+    .btn:hover{transform:translateY(-1px); border-color:rgba(56,189,248,.5)}
+    .btn:focus{outline:none; box-shadow:0 0 0 4px var(--ring)}
+    .btn.primary{background:linear-gradient(135deg, rgba(34,211,238,.15), rgba(56,189,248,.15)); border-color:rgba(56,189,248,.5)}
+
+    textarea{
+      width:100%; min-height:320px; resize:vertical; border:0; outline:none; background:transparent; color:var(--text);
+      padding:16px; line-height:1.6; font-size:16px; caret-color:var(--accent);
+    }
+
+    .hint{font-size:12px; color:var(--muted); padding:0 16px 16px}
+
+    .stats{display:grid; grid-template-columns:repeat(2,1fr); gap:10px}
+    @media(min-width:520px){.stats{grid-template-columns:repeat(3,1fr)}}
+    @media(min-width:980px){.stats{grid-template-columns:1fr}}
+    .card{
+      background:rgba(17,24,39,.75); border:1px solid rgba(148,163,184,.15); border-radius:16px; padding:14px 16px;
+    }
+    .card h3{margin:0 0 6px; font-size:14px; color:var(--muted)}
+    .card .value{font-size:28px; font-weight:800; letter-spacing:.3px}
+    .card.small .value{font-size:20px}
+
+    .range-wrap{display:flex; align-items:center; gap:10px; margin-top:6px}
+    input[type=range]{width:100%}
+
+    footer{max-width:1100px; width:100%; margin:0 auto; padding:0 20px 36px; color:var(--muted)}
+    .link{color:var(--accent); text-decoration:none}
+
+    .pill{font-size:11px; border:1px solid rgba(148,163,184,.2); padding:4px 8px; border-radius:999px; color:var(--muted)}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:12px; border:1px solid rgba(148,163,184,.25); padding:2px 6px; border-radius:6px; color:var(--text)}
+
+    .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">
+      <div class="logo">WC</div>
+      <div>
+        <h1 style="margin:0">Word Counter</h1>
+        <div class="subtitle">Counts words, characters, sentences & paragraphs. 100% local — your text never leaves this page.</div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="editor" aria-label="Text editor">
+      <div class="toolbar">
+        <div class="left">
+          <label class="btn" for="fileInput" title="Open .txt file"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 16V4m0 0 4 4m-4-4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 16v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Import</label>
+          <input id="fileInput" type="file" accept=".txt,.md,.csv,.log" hidden />
+          <button id="copyBtn" class="btn" title="Copy text to clipboard">Copy</button>
+          <button id="clearBtn" class="btn" title="Clear the editor">Clear</button>
+        </div>
+        <div class="right">
+          <span class="pill" title="Auto-save">Auto‑save</span>
+          <button id="downloadBtn" class="btn primary" title="Download stats as .json">Download Stats</button>
+        </div>
+      </div>
+      <textarea id="input" placeholder="Start typing or paste your text here…"></textarea>
+      <div class="hint">Tip: Press <span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> to copy stats to clipboard.</div>
+    </section>
+
+    <aside class="stats" aria-label="Statistics">
+      <div class="card"><h3>Words</h3><div id="words" class="value">0</div></div>
+      <div class="card"><h3>Characters</h3><div id="chars" class="value">0</div></div>
+      <div class="card"><h3>Characters (no spaces)</h3><div id="charsNoSpaces" class="value">0</div></div>
+      <div class="card"><h3>Sentences</h3><div id="sentences" class="value">0</div></div>
+      <div class="card"><h3>Paragraphs</h3><div id="paragraphs" class="value">0</div></div>
+      <div class="card small"><h3>Reading Time</h3><div id="readingTime" class="value">0s</div></div>
+      <div class="card small"><h3>Longest Word</h3><div id="longestWord" class="value">—</div></div>
+      <div class="card small"><h3>Avg. Word Length</h3><div id="avgWordLen" class="value">0</div></div>
+      <div class="card small"><h3>Keyword Density</h3>
+        <div class="range-wrap">
+          <input id="topN" type="range" min="3" max="10" value="5" />
+          <span id="topNLabel" class="pill">Top 5</span>
+        </div>
+        <div id="keywords" style="margin-top:8px; font-size:13px; color:var(--muted)">—</div>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    Built with ❤️. No tracking, no uploads. <a class="link" href="#" id="shareLink">Share current text</a>
+  </footer>
+
+  <script>
+    const $ = (id)=>document.getElementById(id);
+    const input = $('input');
+
+    const state = {
+      text: localStorage.getItem('wc:text') || '',
+      topN: parseInt(localStorage.getItem('wc:topN')||'5',10)
+    };
+
+    // Elements
+    const el = {
+      t: $('input'),
+      words: $('words'),
+      chars: $('chars'),
+      charsNoSpaces: $('charsNoSpaces'),
+      sentences: $('sentences'),
+      paragraphs: $('paragraphs'),
+      readingTime: $('readingTime'),
+      longestWord: $('longestWord'),
+      avgWordLen: $('avgWordLen'),
+      fileInput: $('fileInput'),
+      copyBtn: $('copyBtn'),
+      clearBtn: $('clearBtn'),
+      downloadBtn: $('downloadBtn'),
+      topN: $('topN'),
+      topNLabel: $('topNLabel'),
+      keywords: $('keywords'),
+      shareLink: $('shareLink'),
+    };
+
+    // Initialize
+    el.t.value = state.text;
+    el.topN.value = state.topN;
+    el.topNLabel.textContent = `Top ${state.topN}`;
+
+    function debounce(fn, delay=120){
+      let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(null,args), delay); };
+    }
+
+    function computeStats(text){
+      const trimmed = text.replace(/[\u0000-\u001F]/g,' ').replace(/\s+/g,' ').trim();
+      const chars = text.length;
+      const charsNoSpaces = text.replace(/\s/g,'').length;
+
+      // Word detection: Unicode letters + marks + numbers, allow internal apostrophes/hyphens
+      const wordMatches = text.match(/\p{L}[\p{L}\p{M}\p{N}'’\-]*/gu) || [];
+      const words = wordMatches.length;
+
+      // Sentences: split on ., !, ?, or line breaks that end with punctuation
+      const sentenceMatches = (text.match(/[^.!?\n]+[.!?]+(?:\s|$)/g) || []).length;
+      const sentences = sentenceMatches || (words>0 ? 1 : 0);
+
+      // Paragraphs: split by blank lines
+      const paragraphs = text.trim() ? text.trim().split(/\n\s*\n/).length : 0;
+
+      // Reading time at ~200 wpm
+      const readingSeconds = Math.ceil((words / 200) * 60);
+
+      // Longest word & avg length
+      let longestWord = '—';
+      let avgLen = 0;
+      if (words){
+        longestWord = wordMatches.reduce((a,b)=> b.length>a.length?b:a, '');
+        const totalLen = wordMatches.reduce((s,w)=>s+w.length,0);
+        avgLen = (totalLen/words).toFixed(2);
+      }
+
+      return {words, chars, charsNoSpaces, sentences, paragraphs, readingSeconds, longestWord, avgLen, wordMatches};
+    }
+
+    function formatTime(sec){
+      if (sec < 60) return sec+"s";
+      const m = Math.floor(sec/60), s = sec%60; return s?`${m}m ${s}s`:`${m}m`;
+    }
+
+    function topKeywords(wordList, n){
+      const stop = new Set([
+        'the','a','an','and','or','but','if','in','on','at','to','of','for','with','as','by','is','are','was','were','be','been','it','this','that','these','those','i','you','he','she','they','we','me','him','her','them','my','your','our','their','from','not','so','no','yes','do','did','done','can','could','should','would','will','just','about','into','up','down','over','under','than','then','there','here','how','what','when','where','why'
+      ]);
+      const freq = new Map();
+      for (const w of wordList){
+        const key = w.toLowerCase();
+        if (stop.has(key)) continue;
+        freq.set(key, (freq.get(key)||0)+1);
+      }
+      const out = [...freq.entries()].sort((a,b)=> b[1]-a[1]).slice(0,n);
+      return out;
+    }
+
+    function update(){
+      const text = el.t.value;
+      localStorage.setItem('wc:text', text);
+      const s = computeStats(text);
+      el.words.textContent = s.words.toLocaleString();
+      el.chars.textContent = s.chars.toLocaleString();
+      el.charsNoSpaces.textContent = s.charsNoSpaces.toLocaleString();
+      el.sentences.textContent = s.sentences.toLocaleString();
+      el.paragraphs.textContent = s.paragraphs.toLocaleString();
+      el.readingTime.textContent = formatTime(s.readingSeconds);
+      el.longestWord.textContent = s.longestWord;
+      el.avgWordLen.textContent = s.avgLen;
+
+      const keywords = topKeywords(s.wordMatches, parseInt(el.topN.value,10));
+      if (!keywords.length){ el.keywords.textContent = '—'; }
+      else {
+        el.keywords.innerHTML = keywords.map(([w,c])=>`<span class="pill" title="${c} occurrences">${w} · ${c}</span>`).join(' ');
+      }
+
+      // Update share link
+      try{
+        const url = new URL(location.href);
+        const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(text))));
+        url.hash = `t=${encoded}`;
+        el.shareLink.href = url.toString();
+      }catch(err){ /* ignore */ }
+    }
+
+    const updateDebounced = debounce(update, 60);
+    el.t.addEventListener('input', updateDebounced);
+
+    // Buttons
+    el.copyBtn.addEventListener('click', async ()=>{
+      try{ await navigator.clipboard.writeText(el.t.value); toast('Copied text'); }catch{ toast('Copy failed'); }
+    });
+
+    el.clearBtn.addEventListener('click', ()=>{
+      el.t.value=''; update();
+    });
+
+    el.downloadBtn.addEventListener('click', ()=>{
+      const s = computeStats(el.t.value);
+      const payload = {
+        generatedAt: new Date().toISOString(),
+        ...s,
+        readingTime: formatTime(s.readingSeconds)
+      };
+      const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'word-counter-stats.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(a.href);
+    });
+
+    el.topN.addEventListener('input', ()=>{
+      el.topNLabel.textContent = `Top ${el.topN.value}`;
+      localStorage.setItem('wc:topN', el.topN.value);
+      update();
+    });
+
+    // Import file
+    el.fileInput.addEventListener('change', async (e)=>{
+      const file = e.target.files?.[0];
+      if(!file) return;
+      const text = await file.text();
+      el.t.value = text; update();
+      e.target.value = '';
+    });
+
+    // Keyboard shortcut: Ctrl/Cmd + Enter to copy stats JSON
+    document.addEventListener('keydown', async (ev)=>{
+      if ((ev.ctrlKey||ev.metaKey) && ev.key === 'Enter'){
+        const s = computeStats(el.t.value);
+        const payload = {
+          generatedAt: new Date().toISOString(),
+          words:s.words, chars:s.chars, charsNoSpaces:s.charsNoSpaces,
+          sentences:s.sentences, paragraphs:s.paragraphs,
+          readingTime: formatTime(s.readingSeconds),
+        };
+        try{
+          await navigator.clipboard.writeText(JSON.stringify(payload));
+          toast('Stats copied');
+        }catch{ toast('Copy failed'); }
+      }
+    });
+
+    // Toasts
+    function toast(message){
+      const n = document.createElement('div');
+      n.textContent = message;
+      n.style.position='fixed'; n.style.bottom='20px'; n.style.left='50%'; n.style.transform='translateX(-50%)';
+      n.style.padding='10px 14px'; n.style.background='rgba(15,23,42,.9)'; n.style.border='1px solid rgba(148,163,184,.3)';
+      n.style.borderRadius='10px'; n.style.boxShadow='0 10px 24px rgba(0,0,0,.35)';
+      n.style.zIndex='9999'; n.style.fontWeight='700'; n.style.pointerEvents='none';
+      document.body.appendChild(n);
+      setTimeout(()=>{ n.style.opacity='0'; n.style.transition='opacity .25s ease'; }, 1200);
+      setTimeout(()=>n.remove(), 1600);
+    }
+
+    // Load from URL hash (#t=...) if present
+    (function hydrateFromHash(){
+      const hash = location.hash.slice(1);
+      const params = new URLSearchParams(hash);
+      const t = params.get('t');
+      if (t){
+        try{
+          const decoded = decodeURIComponent(escape(atob(decodeURIComponent(t))));
+          el.t.value = decoded; state.text = decoded;
+        }catch{ /* ignore */ }
+      }
+    })();
+
+    // First paint
+    update();
+  </script>
+</body>
+</html>
